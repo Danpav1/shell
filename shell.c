@@ -17,7 +17,7 @@
 
 //Constants
 #define MAX_COMMAND_LENGTH 100
-#define MAX_ARGUMENTS 10
+#define MAX_ARGUMENTS 15
 
 //Instance Variables
 char command[MAX_COMMAND_LENGTH];
@@ -28,6 +28,7 @@ void batchMode(char* fileName);
 void interactiveMode();
 void tokenize(char *command);
 void useTokens();
+void handleRedirection(char *args[]);
 
 //Function that implements the batch mode of the shell
 void batchMode(char* fileName) {
@@ -101,10 +102,14 @@ void tokenize(char *command) {
 
 	while (*cursor != '\0' && argCount < MAX_ARGUMENTS - 1) {
 		// Skip any leading delimiters (spaces or '>')
-		while (*cursor == ' ' || *cursor == '>') {
+		while (*cursor == ' ' || *cursor == '>' || *cursor == '&') {
 			if (*cursor == '>') {
 				// Add '>' as its own token
 				tokens[argCount++] = ">";
+				if (argCount >= MAX_ARGUMENTS - 1) break;
+			} else if (*cursor == '&') {
+				//Add '&' as its own token
+				tokens[argCount++] = "&";
 				if (argCount >= MAX_ARGUMENTS - 1) break;
 			}
 			cursor++; // Move past the delimiter
@@ -116,7 +121,7 @@ void tokenize(char *command) {
 		char *start = cursor;
 
 		// Move cursor forward until the next delimiter or end of string
-		while (*cursor != '\0' && *cursor != ' ' && *cursor != '>') {
+		while (*cursor != '\0' && *cursor != ' ' && *cursor != '>' && *cursor != '&') {
 			cursor++;
 		}
 
@@ -166,31 +171,149 @@ void useTokens() {
 	} else if (strcmp(tokens[0], "path") == 0) { //builtin "path"
 		path(tokens);
 	} else { //run scripts (everything other than builtin's)
-		//checks for redirection
+
+		char *parallelArgs[MAX_ARGUMENTS] = {NULL};
+		int cursor = 0;
 		int redirCount = 0;
+		int amphCount = 0;
+
+		//run scripts like normal if theres no '>' or '&'
 		for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
-			if (redirCount == 0) {
-				if (strcmp(tokens[i], ">") == 0) {
-					tokens[i] = NULL;
-					redirCount++;
-					if (tokens[i + 1] == NULL) {
-						err("No redir destination");
-					} else if (tokens[i + 2] != NULL) {
-						err("Too many redir destinations");
-					} else {
-						openRedirection(tokens[i + 1]);
-					}		
-				}
-			} else {
-				tokens[i] = NULL;
+			if (strcmp(tokens[i], ">") == 0) {
+				redirCount++;
+			} else if (strcmp(tokens[i], "&") == 0) {
+				amphCount++;
 			}
 		}
-		runScript(tokens);
-		closeRedirection();
+
+		if (redirCount > 0 && amphCount == 0) {
+			handleRedirection(tokens);
+			return;
+		}
+
+		//if there are none, run like normal
+		if (redirCount == 0 && amphCount == 0) {
+			runScript(tokens);
+			return;
+		} else {
+		
+			//early return if first token is "&"
+			if (strcmp(tokens[0], "&") == 0) {
+				return;
+			}
+			int redirFlag = 0;
+			//check and runs parallel commands
+			for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+				redirFlag = 0;
+				if (strcmp(tokens[i], "&") == 0) {
+					if (cursor != 0) {
+						parallelArgs[cursor] = NULL;
+						
+						for (int j = 0; parallelArgs[j] != NULL && j < MAX_ARGUMENTS - 1; j++) {
+							if (strcmp(parallelArgs[j], ">") == 0) {
+								handleRedirection(parallelArgs);
+								
+								for (int j = 0; j <= cursor; j++) {
+									free(parallelArgs[j]);
+									parallelArgs[j] = NULL;
+								}
+
+								redirFlag = 1;
+							}
+						}
+						if (redirFlag == 0) {
+							runScript(parallelArgs);
+						}
+						for (int j = 0; j <= cursor; j++) {
+							free(parallelArgs[j]);
+							parallelArgs[j] = NULL;
+						}
+						cursor = 0;
+					}
+					if (tokens[i + 1] != NULL && strcmp(tokens[i + 1], "&") == 0) {
+						err("two '&' cannot be adjacent");
+					}
+				} else {
+					parallelArgs[cursor] = malloc(strlen(tokens[i]) + 1);
+					strcpy(parallelArgs[cursor], tokens[i]);
+					cursor++;
+				}
+			}
+
+			redirCount = 0;
+
+			for (int i = 0; parallelArgs[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+				if (strcmp(parallelArgs[i], ">") == 0) {
+					redirCount++;
+				}
+			}
+
+			//check and run last command
+			if (parallelArgs[0] != NULL) {
+				if (redirCount == 0) { 
+					runScript(parallelArgs);
+				} else {
+					handleRedirection(parallelArgs);
+				}
+			}
+			/*
+			//checks for redirection
+			redirCount = 0;
+			for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+				if (redirCount == 0) {
+					if (strcmp(tokens[i], ">") == 0) {
+						tokens[i] = NULL;
+						redirCount++;
+				 		if (tokens[i + 1] == NULL) {
+							err("No redir destination");
+						} else if (tokens[i + 2] != NULL) {
+							err("Too many redir destinations");
+						} else {
+							openRedirection(tokens[i + 1]);
+						}		
+					}
+				} else {
+					tokens[i] = NULL;
+				}
+			}
+			*/
+		}
+		//closeRedirection();
+		
+		
 	}
 
 	//Clears the tokens array after they are used
 	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
 		tokens[i] = NULL;
 	}
+}
+
+void handleRedirection(char *args[]) {
+	/*
+	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
+		printf("shell: args[%d]: %s\n", i, args[i]);
+	}
+	*/
+	//checks for redirection
+	int redirCount = 0;
+	for (int i = 0; args[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+		if (redirCount == 0) {
+			if (strcmp(args[i], ">") == 0) {
+				args[i] = NULL;
+				redirCount++;
+		 		if (args[i + 1] == NULL) {
+					err("No redir destination");
+				} else if (args[i + 2] != NULL) {
+					err("Too many redir destinations");
+				} else {
+					openRedirection(args[i + 1]);
+				}		
+			}
+		} else {
+			args[i] = NULL;
+		}
+	}
+	runScript(args);
+	closeRedirection();
 }

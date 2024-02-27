@@ -9,6 +9,8 @@
 
 #include "util.h"
 
+#define MAX_ARGUMENTS 15
+
 /*
 * @author Daniel Pavenko
 * @date 02/23/24
@@ -17,7 +19,7 @@
 */
 
 //Instance variables
-char *pathVar[10] = {"/bin", "/usr/bin", NULL};
+char *pathVar[MAX_ARGUMENTS] = {"/bin", "/usr/bin", NULL};
 
 //Function prototype
 void err(const char *errorMessage);
@@ -32,12 +34,12 @@ void cd(char *arg) {
 //Implementation of path
 void path(char* args[]) {
 	//Path always overwrites the previous pathVar when its called
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
 		pathVar[i] = NULL;
 	}
 
 	//Fills pathVar, args[i + 1] because we dont want the command token
-	for (int i = 0; args[i + 1] != NULL && i < 9; i++) {
+	for (int i = 0; args[i + 1] != NULL && i < MAX_ARGUMENTS - 2; i++) {
 		pathVar[i] = malloc(strlen(args[i + 1]) + 1);
 		strcpy(pathVar[i], args[i + 1]);
 	}
@@ -45,6 +47,11 @@ void path(char* args[]) {
 
 //Tries to run scripts
 void runScript(char *args[]) {
+	/*
+	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
+		printf("runScripts: args[%d]: %s\n", i, args[i]);
+	}
+	*/
 	//fork a new process
 	pid_t pid = fork();
 
@@ -60,12 +67,14 @@ void runScript(char *args[]) {
 		} else {
 			//it doesn't exist
 			//check if script exists within the path
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
 				char scriptPath[1024];
 				snprintf(scriptPath, sizeof(scriptPath), "%s/%s", pathVar[i], args[0]);
 				if (access(scriptPath, F_OK | X_OK) == 0) {
 					//it does exist in path
+					//printf("scriptPath: %s\n", scriptPath);
 					execv(scriptPath, args);
+					//perror("error: ");
 					err("execv in runScript in path failed");
 				}
 			}
