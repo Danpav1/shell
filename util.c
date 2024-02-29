@@ -19,13 +19,13 @@ void err(const char *errorMessage);
 
 //sets up and opens redirection
 void openRedirection(char *outputFile) {
-	//printf("outputFile: %s\n", outputFile);
+	//tries to open outputFile
         int fd = open(outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0) {
                 err("error opening file in redirection");
         }
 
-	//save the current file descriptor (fd)
+	//save the current file descriptor (stdout)
 	stdoutCopy = dup(STDOUT_FILENO);
 	if (stdoutCopy < 0) {
 		err("error duplicating stdout");
@@ -35,6 +35,7 @@ void openRedirection(char *outputFile) {
         if (dup2(fd, STDOUT_FILENO) < 0) {
                 err("error in dup2");
         }
+
         close(fd); //close fd as its no longer needed
 }
 

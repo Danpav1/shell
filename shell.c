@@ -5,48 +5,50 @@
 #include <sys/wait.h>
 #include <ctype.h>
 
-#include "builtIn.h"
+#include "shellCommands.h"
 #include "util.h"
 
 /*
 * @author Daniel Pavenko
 * @date 02/23/24
-* This file houses the code for the functionality of the shell. It currently
-* has all the code needed for the project except for the built in commands.
-*/
+* This file houses the main functionality of the shell and is responsible for calling
+* the appropriate functions in other files.
+*/ 
 
 //Constants
 #define MAX_COMMAND_LENGTH 100
 #define MAX_ARGUMENTS 15
 
 //Instance Variables
-char command[MAX_COMMAND_LENGTH];
+char commandLine[MAX_COMMAND_LENGTH];
 char *tokens[MAX_ARGUMENTS];
 
-//Function prototypes
+//Function prototype(s)
 void batchMode(char* fileName);
 void interactiveMode();
 void tokenize(char *command);
-void useTokens();
-void handleRedirection(char *args[]);
+void checkAndRouteTokens();
+int handleBuiltIns(char *args[]);
+int handleRedirection(char *args[]);
+void handleParallel(char *args[]);
 
 //Function that implements the batch mode of the shell
 void batchMode(char* fileName) {
 	//Opening the file for reading
 	FILE *file = fopen(fileName, "r");
 		
-	//check if we opened the file properly
+	//Check if we opened the file properly
 	if (file == NULL) {
-		errBatchMode("Error opening file");
+		errBatchMode("batchMode error: failure to open file properly");
 	}
 
 	//iterates through lines and gets commands
-	while (fgets(command, sizeof(command), file) != NULL) {
-		//removes newline character
-		command[strcspn(command, "\n")] = '\0';
+	while (fgets(commandLine, sizeof(commandLine), file) != NULL) {
+		//Removes newline character
+		commandLine[strcspn(commandLine, "\n")] = '\0';
 		
-		// check if the line is empty or consists only of whitespace(s)
-		char *temp = command;
+		//Check if the line is empty or consists only of whitespace(s)
+		char *temp = commandLine;
 		int isEmpty = 1; //flag to check if line is empty
 		while (*temp) {
 			if (!isspace((unsigned char)*temp)) {
@@ -56,18 +58,17 @@ void batchMode(char* fileName) {
 			temp++;
 		}
 
-		//skip this iteration if the line is empty
+		//Skip this iteration if the line is empty
 		if (isEmpty) {
 			continue;
 		}
 
-		//tokenizes command
-		tokenize(command);
+		//Tokenizes commandLine
+		tokenize(commandLine);
 
-		//uses tokens
-		useTokens();
+		//Validates the tokens as args and routes them to their respective functions
+		checkAndRouteTokens();
 	}
-
 	fclose(file);
 	exit(0);
 }
@@ -79,32 +80,34 @@ void interactiveMode() {
 		fflush(stdout);
 
 		//Read command from user
-		if (fgets(command, sizeof(command), stdin) == NULL) {
+		if (fgets(commandLine, sizeof(commandLine), stdin) == NULL) {
 			printf("\n");
 			break;
 		}
 
 		//Remove trailing newline character
-		command[strcspn(command, "\n")] = '\0';
+		commandLine[strcspn(commandLine, "\n")] = '\0';
 
-		//Tokenize the command
-		tokenize(command);
+		//Tokenize the commandLine
+		tokenize(commandLine);
 		
-		//Uses the tokens
-		useTokens();
+		//Validates the tokens as args and routes them to their respective functions
+		checkAndRouteTokens();
 	}
 }
 
-//Helper function that implements custom tokenizations
-void tokenize(char *command) {
+//Helper function that handles the tokenization of the commandLine. The process is manual
+//as we need to use multiple delimiters (' ', '>', '&') in a fashion that strtok cannot
+//handle 
+void tokenize(char *commandLine) {
 	int argCount = 0;
-	char *cursor = command; // Cursor to traverse the command string
+	char *cursor = commandLine; //Cursor to traverse the commandLine string
 
 	while (*cursor != '\0' && argCount < MAX_ARGUMENTS - 1) {
-		// Skip any leading delimiters (spaces or '>')
+		//Skip any leading delimiters (' ' or '>' or '&')
 		while (*cursor == ' ' || *cursor == '>' || *cursor == '&') {
 			if (*cursor == '>') {
-				// Add '>' as its own token
+				//Add '>' as its own token
 				tokens[argCount++] = ">";
 				if (argCount >= MAX_ARGUMENTS - 1) break;
 			} else if (*cursor == '&') {
@@ -112,70 +115,49 @@ void tokenize(char *command) {
 				tokens[argCount++] = "&";
 				if (argCount >= MAX_ARGUMENTS - 1) break;
 			}
-			cursor++; // Move past the delimiter
+			cursor++; //Move past the delimiter
 		}
 
-		if (*cursor == '\0') break; // Break if end of string
+		if (*cursor == '\0') break; //Break if end of string
 
-		// Mark the start of a token
+		//Mark the start of a token
 		char *start = cursor;
 
-		// Move cursor forward until the next delimiter or end of string
+		//Move cursor forward until the next delimiter or end of string
 		while (*cursor != '\0' && *cursor != ' ' && *cursor != '>' && *cursor != '&') {
 			cursor++;
 		}
 
-		// Allocate memory for the token and copy it from the command string
+		//Allocate memory for the token and copy it from the commandLine string
 		size_t tokenLength = cursor - start;
 		if (tokenLength > 0) {
-			char *token = malloc(tokenLength + 1); // +1 for null terminator
+			char *token = malloc(tokenLength + 1); //+1 for null terminator
 			if (token != NULL) {
 				strncpy(token, start, tokenLength);
-				token[tokenLength] = '\0'; // Null-terminate the token
-				tokens[argCount++] = token; // Add the token to the tokens array
+				token[tokenLength] = '\0'; //Null-terminate the token
+				tokens[argCount++] = token; //Add the token to the tokens array
 			} else {
-				// Memory allocation failure
-				err("tokenization malloc failure");
+				//Memory allocation failure
+				err("tokenize error: failure to allocate memory for token");
 			}
 		}
-	// No need to increment cursor here, it's already at the next delimiter or end of string
+	//No need to increment cursor here, it's already at the next delimiter or end of string
 	}
-	tokens[argCount] = NULL; // Null-terminate the tokens array
+	tokens[argCount] = NULL; //Null-terminate the tokens array
 }
 
-
-//Function that uses the tokens and sees if they are valid arguments
-void useTokens() {
-
+//Helper function that validates the tokens as arguments and routes them to their respective
+//function(s), usually error processing or execution
+void checkAndRouteTokens() {
 	if (tokens[0] == NULL) { //No args given
-		err("Tokens array is empty");
-	} else if (strcmp(tokens[0], "cd") == 0) { //builtin "cd"
-		if (tokens[1] == NULL) {
-			err("No arguments");
-		} else if (tokens[1] != NULL && tokens[2] != NULL) {
-			err("Too many arguments");
-		} else {
-			cd(tokens[1]);
-		}
-	} else if (strcmp(tokens[0], "exit") == 0) { //builtin "exit"
-		if (tokens[1] != NULL) {
-			err("Cannot exit with arguments");
-		} else {
-			//	printf("exit called\n");
-			runParallelArray();
-			waitForChildren();
-			exit(0);
-		}
-	} else if (strcmp(tokens[0], "path") == 0) { //builtin "path"
-		path(tokens);
-	} else { //run scripts (everything other than builtin's)
-
-		char *parallelArgs[MAX_ARGUMENTS] = {NULL};
-		int cursor = 0;
+		err("No args given");
+	} else if (strcmp(tokens[0], "&") == 0) { //Early return if first token is "&"
+		return;
+	} else if (handleBuiltIns(tokens) == 0) { 
 		int redirCount = 0;
 		int amphCount = 0;
 
-		//run scripts like normal if theres no '>' or '&'
+		//Count how many ">" and "&" are present
 		for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
 			if (strcmp(tokens[i], ">") == 0) {
 				redirCount++;
@@ -184,118 +166,108 @@ void useTokens() {
 			}
 		}
 
+		//If there are ">" but no "&", call handleRedirection
 		if (redirCount > 0 && amphCount == 0) {
 			handleRedirection(tokens);
-			runParallelArray();
-			return;
-		}
-
-		//if there are none, run like normal
-		if (redirCount == 0 && amphCount == 0) {
-			//runScript(tokens);
-			addToParallelArray(tokens);
-			//waitForChildren();
-			//return;
-		} else {
-		
-			//early return if first token is "&"
-			if (strcmp(tokens[0], "&") == 0) {
-				return;
-			}
-			int redirFlag = 0;
-			//check and runs parallel commands
-			for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
-				redirFlag = 0;
-				if (strcmp(tokens[i], "&") == 0) {
-					if (cursor != 0) {
-						parallelArgs[cursor] = NULL;
-						
-						for (int j = 0; parallelArgs[j] != NULL && j < MAX_ARGUMENTS - 1; j++) {
-							if (strcmp(parallelArgs[j], ">") == 0) {
-								handleRedirection(parallelArgs);
-								
-								for (int j = 0; j <= cursor; j++) {
-									free(parallelArgs[j]);
-									parallelArgs[j] = NULL;
-								}
-
-								redirFlag = 1;
-							}
-						}
-						if (redirFlag == 0) {
-							//runScript(parallelArgs);
-							addToParallelArray(parallelArgs);
-							//waitForChildren();
-						}
-						for (int j = 0; j <= cursor; j++) {
-							free(parallelArgs[j]);
-							parallelArgs[j] = NULL;
-						}
-						cursor = 0;
-					}
-					if (tokens[i + 1] != NULL && strcmp(tokens[i + 1], "&") == 0) {
-						err("two '&' cannot be adjacent");
-					}
-				} else {
-					parallelArgs[cursor] = malloc(strlen(tokens[i]) + 1);
-					strcpy(parallelArgs[cursor], tokens[i]);
-					cursor++;
-				}
-			}
-
-			redirCount = 0;
-
-			for (int i = 0; parallelArgs[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
-				if (strcmp(parallelArgs[i], ">") == 0) {
-					redirCount++;
-				}
-			}
-
-			//check and run last command
-			if (parallelArgs[0] != NULL) {
-				if (redirCount == 0) { 
-					//runScript(parallelArgs);
-					addToParallelArray(parallelArgs);
-					//waitForChildren();
-				} else {
-					handleRedirection(parallelArgs);
-				}
-			}
+		} else if (amphCount > 0) { //If "&" is present, handle parallel commands
+			handleParallel(tokens);
+		} else { //If there are no "&", ">" tokens present, run script normally
+			enqueueCommandArgs(tokens);
 		}
 	}
-
 	
-	runParallelArray();
-	//waitForChildren();
+	runCommandArgsQueue();
+}
 
-	//Clears the tokens array after they are used
-	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
-		tokens[i] = NULL;
+//Helper function that handles parallel commands validation
+void handleParallel(char *args[]) {
+	char *tokenSubArray[MAX_ARGUMENTS] = {NULL};
+	int cursor = 0;
+
+	for (int i = 0; args[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+		if (strcmp(args[i], "&") == 0) {
+			if (cursor != 0) {
+				tokenSubArray[cursor] = NULL;
+				
+				if (handleRedirection(tokenSubArray) == 1) {
+					for (int j = 0; j <= cursor; j++) {
+						free(tokenSubArray[j]);
+						tokenSubArray[j] = NULL;
+					}
+				} else {
+					enqueueCommandArgs(tokenSubArray);
+					for (int j = 0; j <= cursor; j++) {
+						free(tokenSubArray[j]);
+						tokenSubArray[j] = NULL;
+					}
+				}
+				cursor = 0;
+			}
+
+			if (tokens[i + 1] != NULL && strcmp(tokens[i + 1], "&") == 0) {
+				err("handleParallel error: two '&' cannot be adjacent");
+			}
+		} else {
+			tokenSubArray[cursor] = malloc(strlen(args[i]) + 1);
+			strcpy(tokenSubArray[cursor], args[i]);
+			cursor++;
+		}
+	}
+	
+	//Check and run last command stored in tokenSubArray
+	if (tokenSubArray[0] != NULL) {
+		if (handleRedirection(tokenSubArray) == 0) {
+			enqueueCommandArgs(tokenSubArray);
+		}
 	}
 }
 
-void handleRedirection(char *args[]) {
-	//checks for redirection
+//Helper function that handles the builtIn validation
+int handleBuiltIns(char *args[]) {
+	if (strcmp(args[0], "cd") == 0) {
+		if (args[1] == NULL) {
+			err("handleBuiltIns error: cd requires 1 argument");
+		} else if (args[2] != NULL) {
+			err("handleBuiltIns error: cd can only take 1 argument");
+		} else {
+			cd(args[1]);
+			return 1;
+		}
+	} else if (strcmp(args[0], "path") == 0) {
+		path(tokens);
+		return 1;
+	} else if (strcmp(args[0], "exit") == 0) {
+		if (args[1] != NULL) {
+			err("handleBuiltIns error: exit cannot take arguments");
+		} else {
+			//Make sure we've ran all queued commands before exiting
+			runCommandArgsQueue();
+			waitForChildren();
+			exit(0);
+		}
+	} else {
+		return 0;
+	}
+}
+
+//Helper function that handles the redirection validation
+int handleRedirection(char *args[]) {
+	//Checks for redirection
 	int redirCount = 0;
 	for (int i = 0; args[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
 		if (redirCount == 0) {
 			if (strcmp(args[i], ">") == 0) {
-				//args[i] = NULL;
 				redirCount++;
-		 		if (args[i + 1] == NULL) {
-					err("No redir destination");
+				if (args[i + 1] == NULL) {
+					err("handleRedirection error: no '>' argument");
 				} else if (args[i + 2] != NULL) {
-					err("Too many redir destinations");
+					err("handleRedirection error: too many '>' arguments");
 				} else {
-					//openRedirection(args[i + 1]);
-					addToParallelArray(args);
+					enqueueCommandArgs(args);
+					return 1; //Redirection handled and enqueued
 				}		
 			}
-		} else {
-			//args[i] = NULL;
-		}
+		} 
 	}
-	//runScript(args);
-	//closeRedirection();
-	//waitForChildren();
+	return 0; //No redirection found
 }

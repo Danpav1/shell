@@ -3,8 +3,8 @@ CFLAGS = -Wall -Wextra -std=c99
 
 all: wish testMain
 
-wish: wish.o shell.o builtIn.o util.o
-	$(CC) $(CFLAGS) -o wish wish.o shell.o builtIn.o util.o
+wish: wish.o shell.o shellCommands.o util.o
+	$(CC) $(CFLAGS) -o wish wish.o shell.o shellCommands.o util.o
 
 testMain: testMain.o testUtil.o testShell.o
 	$(CC) $(CFLAGS) -o testMain testMain.o testUtil.o testShell.o
@@ -15,8 +15,8 @@ wish.o: wish.c
 shell.o: shell.c
 	$(CC) $(CFLAGS) -c shell.c
 
-builtIn.o: builtIn.c
-	$(CC) $(CFLAGS) -c builtIn.c
+shellCommands.o: shellCommands.c
+	$(CC) $(CFLAGS) -c shellCommands.c
 
 util.o: util.c
 	$(CC) $(CFLAGS) -c util.c

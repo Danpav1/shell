@@ -4,6 +4,3 @@ void batchMode(char* fileName);
 
 void interactiveMode();
 
-void tokenize(char *command);
-
-void useTokens();

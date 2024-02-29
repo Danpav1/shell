@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 	} else if (argc == 2) {
 		batchMode(argv[1]);
 	} else {
-		errBatchMode("Too many files given to batchmode");
+		errBatchMode("main error: Too many files given to batchmode");
 	}
 	return 0;
 }
