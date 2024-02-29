@@ -6,4 +6,8 @@ void path(char *arg[]);
 
 void runScript(char *args[]);
 
-void err(const char* errorMessage);
+void waitForChildren();
+
+void addToParallelArray(char *args[]);
+
+void runParallelArray();

@@ -67,7 +67,7 @@ void batchMode(char* fileName) {
 		//uses tokens
 		useTokens();
 	}
-		
+
 	fclose(file);
 	exit(0);
 }
@@ -146,11 +146,6 @@ void tokenize(char *command) {
 
 //Function that uses the tokens and sees if they are valid arguments
 void useTokens() {
-	/*
-	for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
-		printf("tokens[%d]: %s\n", i, tokens[i]);
-	}
-	*/
 
 	if (tokens[0] == NULL) { //No args given
 		err("Tokens array is empty");
@@ -166,6 +161,9 @@ void useTokens() {
 		if (tokens[1] != NULL) {
 			err("Cannot exit with arguments");
 		} else {
+			//	printf("exit called\n");
+			runParallelArray();
+			waitForChildren();
 			exit(0);
 		}
 	} else if (strcmp(tokens[0], "path") == 0) { //builtin "path"
@@ -188,13 +186,16 @@ void useTokens() {
 
 		if (redirCount > 0 && amphCount == 0) {
 			handleRedirection(tokens);
+			runParallelArray();
 			return;
 		}
 
 		//if there are none, run like normal
 		if (redirCount == 0 && amphCount == 0) {
-			runScript(tokens);
-			return;
+			//runScript(tokens);
+			addToParallelArray(tokens);
+			//waitForChildren();
+			//return;
 		} else {
 		
 			//early return if first token is "&"
@@ -222,7 +223,9 @@ void useTokens() {
 							}
 						}
 						if (redirFlag == 0) {
-							runScript(parallelArgs);
+							//runScript(parallelArgs);
+							addToParallelArray(parallelArgs);
+							//waitForChildren();
 						}
 						for (int j = 0; j <= cursor; j++) {
 							free(parallelArgs[j]);
@@ -251,37 +254,19 @@ void useTokens() {
 			//check and run last command
 			if (parallelArgs[0] != NULL) {
 				if (redirCount == 0) { 
-					runScript(parallelArgs);
+					//runScript(parallelArgs);
+					addToParallelArray(parallelArgs);
+					//waitForChildren();
 				} else {
 					handleRedirection(parallelArgs);
 				}
 			}
-			/*
-			//checks for redirection
-			redirCount = 0;
-			for (int i = 0; tokens[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
-				if (redirCount == 0) {
-					if (strcmp(tokens[i], ">") == 0) {
-						tokens[i] = NULL;
-						redirCount++;
-				 		if (tokens[i + 1] == NULL) {
-							err("No redir destination");
-						} else if (tokens[i + 2] != NULL) {
-							err("Too many redir destinations");
-						} else {
-							openRedirection(tokens[i + 1]);
-						}		
-					}
-				} else {
-					tokens[i] = NULL;
-				}
-			}
-			*/
 		}
-		//closeRedirection();
-		
-		
 	}
+
+	
+	runParallelArray();
+	//waitForChildren();
 
 	//Clears the tokens array after they are used
 	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
@@ -290,30 +275,27 @@ void useTokens() {
 }
 
 void handleRedirection(char *args[]) {
-	/*
-	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
-		printf("shell: args[%d]: %s\n", i, args[i]);
-	}
-	*/
 	//checks for redirection
 	int redirCount = 0;
 	for (int i = 0; args[i] != NULL && i < MAX_ARGUMENTS - 1; i++) {
 		if (redirCount == 0) {
 			if (strcmp(args[i], ">") == 0) {
-				args[i] = NULL;
+				//args[i] = NULL;
 				redirCount++;
 		 		if (args[i + 1] == NULL) {
 					err("No redir destination");
 				} else if (args[i + 2] != NULL) {
 					err("Too many redir destinations");
 				} else {
-					openRedirection(args[i + 1]);
+					//openRedirection(args[i + 1]);
+					addToParallelArray(args);
 				}		
 			}
 		} else {
-			args[i] = NULL;
+			//args[i] = NULL;
 		}
 	}
-	runScript(args);
-	closeRedirection();
+	//runScript(args);
+	//closeRedirection();
+	//waitForChildren();
 }
