@@ -186,7 +186,6 @@ void checkAndRouteTokens() {
 	//Free memory 
 	for (int i = 0; tokens[i] != NULL; i++) {
 		free(tokens[i]);
-		tokens[i] = NULL;
 	}
 }
 
@@ -230,6 +229,11 @@ void handleParallel(char *args[]) {
 		if (handleRedirection(tokenSubArray) == 0) {
 			enqueueCommandArgs(tokenSubArray);
 		}
+	}
+
+	//Free memory
+	for (int i = 0; tokenSubArray[i] != NULL && i < MAX_ARGUMENTS; i++) {
+		free(tokenSubArray[i]);
 	}
 }
 
