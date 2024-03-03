@@ -43,10 +43,16 @@ void cd(char *arg) {
 //Initilizes the pathVar to have the correct malloced starting dir(s)
 void pathInit() {
 	char *defaultOne = malloc(4);
+	if (defaultOne == NULL) {
+		err("pathInit error: defaultOne malloc failed");
+	}
 	strcpy(defaultOne, "/bin");
 	pathVar[0] = defaultOne;
 
 	char *defaultTwo = malloc(8);
+	if (defaultTwo == NULL) {
+		err("pathInit error: defaultTwo malloc failed");
+	}
 	strcpy(defaultTwo, "/usr/bin");
 	pathVar[1] = defaultTwo;
 }
@@ -55,6 +61,9 @@ void pathInit() {
 void path(char *args[]) {	
 	//Overwrite and free pathVar
 	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
+		if (pathVar[i] == NULL) {
+			continue;
+		}
 		free(pathVar[i]);
 		pathVar[i] = NULL;
 	}
