@@ -52,8 +52,7 @@ void pathInit() {
 }
 
 //Implementation of builtIn command "path"
-void path(char *args[]) {
-	
+void path(char *args[]) {	
 	//Overwrite and free pathVar
 	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
 		free(pathVar[i]);

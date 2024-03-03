@@ -248,8 +248,10 @@ int handleBuiltIns(char *args[]) {
 	if (strcmp(args[0], "cd") == 0) {
 		if (args[1] == NULL) {
 			err("handleBuiltIns error: cd requires 1 argument");
+			return -1;
 		} else if (args[2] != NULL) {
 			err("handleBuiltIns error: cd can only take 1 argument");
+			return -1;
 		} else {
 			cd(args[1]);
 			return 1;
@@ -260,6 +262,7 @@ int handleBuiltIns(char *args[]) {
 	} else if (strcmp(args[0], "exit") == 0) {
 		if (args[1] != NULL) {
 			err("handleBuiltIns error: exit cannot take arguments");
+			return -1;
 		} else {
 			//Make sure we've ran all queued commands before exiting
 			runCommandArgsQueue();
