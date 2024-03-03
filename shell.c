@@ -108,11 +108,15 @@ void tokenize(char *commandLine) {
 		while (*cursor == ' ' || *cursor == '>' || *cursor == '&') {
 			if (*cursor == '>') {
 				//Add '>' as its own token
-				tokens[argCount++] = ">";
+				char *token = malloc(2);
+				strcpy(token, ">\0");
+				tokens[argCount++] = token;
 				if (argCount >= MAX_ARGUMENTS - 1) break;
 			} else if (*cursor == '&') {
 				//Add '&' as its own token
-				tokens[argCount++] = "&";
+				char *token = malloc(2);
+				strcpy(token, "&\0");
+				tokens[argCount++] = token;
 				if (argCount >= MAX_ARGUMENTS - 1) break;
 			}
 			cursor++; //Move past the delimiter
@@ -141,6 +145,7 @@ void tokenize(char *commandLine) {
 				err("tokenize error: failure to allocate memory for token");
 			}
 		}
+
 	//No need to increment cursor here, it's already at the next delimiter or end of string
 	}
 	tokens[argCount] = NULL; //Null-terminate the tokens array
@@ -177,6 +182,12 @@ void checkAndRouteTokens() {
 	}
 	
 	runCommandArgsQueue();
+
+	//Free memory 
+	for (int i = 0; tokens[i] != NULL; i++) {
+		free(tokens[i]);
+		tokens[i] = NULL;
+	}
 }
 
 //Helper function that handles parallel commands validation
