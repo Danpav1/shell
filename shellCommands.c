@@ -48,6 +48,12 @@ void path(char *args[]) {
 
 	//Fills pathVar, args[i + 1] because we dont want the command token
 	for (int i = 0; args[i + 1] != NULL && i < MAX_ARGUMENTS - 2; i++) {
+
+		//Check if all args in path are valid directories
+		if (access(args[i + 1], F_OK | X_OK) != 0) {
+			err("Invalid path arg found");
+		}
+
 		pathVar[i] = malloc(strlen(args[i + 1]) + 1);
 		strcpy(pathVar[i], args[i + 1]);
 	}
