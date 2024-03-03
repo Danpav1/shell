@@ -23,7 +23,7 @@
 char *pathVar[MAX_ARGUMENTS] = {NULL};
 char **pendingCommandArgs[MAX_ARGUMENTS];
 int numPendingCommandArgs = 0;
-pid_t childPids[MAX_CHILDREN];
+pid_t childPids[MAX_CHILDREN] = {-1};
 int numChildren = 0;
 
 //Function prototype(s)
@@ -133,8 +133,8 @@ void runScript(char *args[]) {
 
 //Blocks main process (waits) until all children are complete
 void waitForChildren() {
-	int status;
-	pid_t pid;
+	int status = 0;
+	pid_t pid = 0;
 
 	while (numChildren > 0) {
 		//Set any terminated fork to pid
@@ -169,7 +169,7 @@ void enqueueCommandArgs(char *args[]) {
 		err("enqueueCommandArgs error: failure to allocate memory for argsCopy");
 	}
 
-	int i;
+	int i = 0;
 	for (i = 0; args[i] != NULL && i < MAX_ARGUMENTS; i++) {
 		//Allocate memory for each string and copy it
 		argsCopy[i] = strdup(args[i]);
