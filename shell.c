@@ -34,6 +34,9 @@ void handleParallel(char *args[]);
 
 //Function that implements the batch mode of the shell
 void batchMode(char* fileName) {
+	//Initilize path var to have correct default dir(s)
+	pathInit();
+
 	//Opening the file for reading
 	FILE *file = fopen(fileName, "r");
 		
@@ -75,6 +78,9 @@ void batchMode(char* fileName) {
 
 //Function that implements the interactive mode of the shell
 void interactiveMode() {
+	//Initilize path var to have correct default dir(s)
+	pathInit();
+
 	while(1) {
 		printf("wish> ");
 		fflush(stdout);

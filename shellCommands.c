@@ -20,7 +20,7 @@
 */
 
 //Instance variables
-char *pathVar[MAX_ARGUMENTS] = {"/bin", "/usr/bin", NULL};
+char *pathVar[MAX_ARGUMENTS] = {NULL};
 char **pendingCommandArgs[MAX_ARGUMENTS];
 int numPendingCommandArgs = 0;
 pid_t childPids[MAX_CHILDREN];
@@ -31,6 +31,7 @@ void err(const char *errorMessage);
 void waitForChildren();
 void enqueueCommandArgs(char *args[]);
 void runCommandArgsQueue();
+void pathInit();
 
 //Implementation of builtIn command "cd"
 void cd(char *arg) {
@@ -39,10 +40,23 @@ void cd(char *arg) {
 	}
 }
 
+//Initilizes the pathVar to have the correct malloced starting dir(s)
+void pathInit() {
+	char *defaultOne = malloc(4);
+	strcpy(defaultOne, "/bin");
+	pathVar[0] = defaultOne;
+
+	char *defaultTwo = malloc(8);
+	strcpy(defaultTwo, "/usr/bin");
+	pathVar[1] = defaultTwo;
+}
+
 //Implementation of builtIn command "path"
 void path(char *args[]) {
-	//Path always overwrites the previous pathVar when its called
+	
+	//Overwrite and free pathVar
 	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
+		free(pathVar[i]);
 		pathVar[i] = NULL;
 	}
 
