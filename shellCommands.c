@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
@@ -42,14 +43,14 @@ void cd(char *arg) {
 
 //Initilizes the pathVar to have the correct malloced starting dir(s)
 void pathInit() {
-	char *defaultOne = malloc(4);
+	char *defaultOne = malloc(5);
 	if (defaultOne == NULL) {
 		err("pathInit error: defaultOne malloc failed");
 	}
 	strcpy(defaultOne, "/bin");
 	pathVar[0] = defaultOne;
 
-	char *defaultTwo = malloc(8);
+	char *defaultTwo = malloc(9);
 	if (defaultTwo == NULL) {
 		err("pathInit error: defaultTwo malloc failed");
 	}
@@ -58,25 +59,27 @@ void pathInit() {
 }
 
 //Implementation of builtIn command "path"
-void path(char *args[]) {	
-	//Overwrite and free pathVar
-	for (int i = 0; i < MAX_ARGUMENTS - 1; i++) {
-		if (pathVar[i] == NULL) {
-			continue;
+void path(char *args[]) {
+	//Free memory
+	for (int i = 0; i < MAX_ARGUMENTS; i++) {
+		if (pathVar[i] != NULL) {
+			free(pathVar[i]);
+			pathVar[i] = NULL;
 		}
-		free(pathVar[i]);
-		pathVar[i] = NULL;
 	}
 
 	//Fills pathVar, args[i + 1] because we dont want the command token
-	for (int i = 0; args[i + 1] != NULL && i < MAX_ARGUMENTS - 2; i++) {
+	for (int i = 0; args[i + 1] != NULL && i < MAX_ARGUMENTS - 1; i++) {
+		
+		//Memory allocation
+		pathVar[i] = malloc(strlen(args[i + 1]) + 1);
 
-		//Check if all args in path are valid directories
-		if (access(args[i + 1], F_OK | X_OK) != 0) {
-			err("Invalid path arg found");
+		//Check if malloc failed
+		if (pathVar[i] == NULL) {
+			err("path error: malloc failed");
 		}
 
-		pathVar[i] = malloc(strlen(args[i + 1]) + 1);
+		//Copy path into pathVar
 		strcpy(pathVar[i], args[i + 1]);
 	}
 }
