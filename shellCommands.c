@@ -184,15 +184,11 @@ void enqueueCommandArgs(char *args[]) {
 	int i = 0;
 	for (i = 0; args[i] != NULL && i < MAX_ARGUMENTS; i++) {
 		//Allocate memory for each string and copy it
-		argsCopy[i] = strdup(args[i]);
+		argsCopy[i] = malloc(strlen(args[i]) + 1);
 		if (argsCopy[i] == NULL) {
 			err("enqueueCommandArgs error: failure to duplicate string for argsCopy");
-
-			//Free any strings already copied and the array itself
-			while (--i >= 0) free(argsCopy[i]);
-			free(argsCopy);
-			return;
 		}
+		strcpy(argsCopy[i], args[i]);
 	}
 	//Null-terminate the array of pointers
 	argsCopy[i] = NULL;
