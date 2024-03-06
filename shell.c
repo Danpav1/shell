@@ -73,6 +73,7 @@ void batchMode(char* fileName) {
 		checkAndRouteTokens();
 	}
 	fclose(file);
+	freePathVar();
 	exit(0);
 }
 
@@ -267,6 +268,7 @@ int handleBuiltIns(char *args[]) {
 			//Make sure we've ran all queued commands before exiting
 			runCommandArgsQueue();
 			waitForChildren();
+			freePathVar();
 			exit(0);
 		}
 	} else {

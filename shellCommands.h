@@ -1,5 +1,7 @@
 //Header file for shellCommands
 
+void freePathVar();
+
 void pathInit();
 
 void cd(char *arg);

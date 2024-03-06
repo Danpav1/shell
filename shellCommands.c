@@ -33,11 +33,22 @@ void waitForChildren();
 void enqueueCommandArgs(char *args[]);
 void runCommandArgsQueue();
 void pathInit();
+void freePathVar();
 
 //Implementation of builtIn command "cd"
 void cd(char *arg) {
 	if (chdir(arg) != 0) {
 		err("cd error: chdir failed");
+	}
+}
+
+//Frees path var
+void freePathVar() {
+	for (int i = 0; i < MAX_ARGUMENTS; i++) {
+		if (pathVar[i] != NULL) {
+			free(pathVar[i]);
+			pathVar[i] = NULL;
+		}
 	}
 }
 
@@ -61,12 +72,7 @@ void pathInit() {
 //Implementation of builtIn command "path"
 void path(char *args[]) {
 	//Free memory
-	for (int i = 0; i < MAX_ARGUMENTS; i++) {
-		if (pathVar[i] != NULL) {
-			free(pathVar[i]);
-			pathVar[i] = NULL;
-		}
-	}
+	freePathVar();	
 
 	//Fills pathVar, args[i + 1] because we dont want the command token
 	for (int i = 0; args[i + 1] != NULL && i < MAX_ARGUMENTS - 1; i++) {
